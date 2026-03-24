@@ -1,79 +1,133 @@
 /**
- * Retro Synthwave Pomodoro — timer logic with localStorage and session cues
+ * Synth Pomodoro — Pomodoro cycles, localStorage, stats, and session cues
  */
 
 const LOCAL_STORAGE_KEY = "synthPomodoroSettings";
 const STATS_KEY = "synthPomodoroStats";
+
 const DEFAULT_FOCUS_MINUTES = 25;
 const DEFAULT_BREAK_MINUTES = 5;
+const DEFAULT_LONG_BREAK_MINUTES = 15;
+const FOCUS_BLOCKS_BEFORE_LONG_BREAK = 4;
 
 let isRunning = false;
-/** Tracks resume-after-pause so restarting does not reset remaining time. */
-let isPaused = false;
 let isFocusSession = true;
+let isLongBreakSession = false;
 let remainingSeconds = DEFAULT_FOCUS_MINUTES * 60;
+
 let focusMinutes = DEFAULT_FOCUS_MINUTES;
 let breakMinutes = DEFAULT_BREAK_MINUTES;
+let longBreakMinutes = DEFAULT_LONG_BREAK_MINUTES;
+
+let completedFocusBlocks = 0;
+
 let intervalId = null;
+let flashTimeoutId = null;
 
 let stats = {
   totalSessions: 0,
   totalFocusMinutes: 0,
 };
 
-let flashTimeoutId = null;
-
 const appContainer = document.getElementById("app-container");
 const timerDisplay = document.getElementById("timer-display");
 const sessionIndicator = document.getElementById("session-indicator");
+const cycleIndicator = document.getElementById("cycle-indicator");
+
 const focusInput = document.getElementById("focus-minutes-input");
 const breakInput = document.getElementById("break-minutes-input");
+const longBreakInput = document.getElementById("long-break-minutes-input");
+
 const startButton = document.getElementById("start-button");
 const resetButton = document.getElementById("reset-button");
+
 const sessionSound = document.getElementById("session-sound");
+
+const statsSessionsElement = document.getElementById("stats-sessions");
+const statsMinutesElement = document.getElementById("stats-minutes");
+const clearStatsButton = document.getElementById("clear-stats-button");
+
+function clamp(n, min, max) {
+  return Math.min(max, Math.max(min, n));
+}
 
 function loadSettingsFromStorage() {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!raw) {
-      throw new Error("missing");
-    }
+    if (!raw) throw new Error("missing");
     const data = JSON.parse(raw);
     const f = Number(data.focusMinutes);
     const b = Number(data.breakMinutes);
-    if (
-      !Number.isFinite(f) ||
-      !Number.isFinite(b) ||
-      f < 1 ||
-      f > 180 ||
-      b < 1 ||
-      b > 180
-    ) {
-      throw new Error("invalid");
-    }
-    focusMinutes = f;
-    breakMinutes = b;
-    if (focusInput) focusInput.value = String(focusMinutes);
-    if (breakInput) breakInput.value = String(breakMinutes);
+    const lb =
+      data.longBreakMinutes != null
+        ? Number(data.longBreakMinutes)
+        : DEFAULT_LONG_BREAK_MINUTES;
+
+    if (!Number.isFinite(f) || f < 1) throw new Error("bad focus");
+    if (!Number.isFinite(b) || b < 1) throw new Error("bad break");
+    if (!Number.isFinite(lb) || lb < 1) throw new Error("bad long break");
+
+    focusMinutes = clamp(Math.floor(f), 1, 180);
+    breakMinutes = clamp(Math.floor(b), 1, 60);
+    longBreakMinutes = clamp(Math.floor(lb), 1, 60);
   } catch {
     focusMinutes = DEFAULT_FOCUS_MINUTES;
     breakMinutes = DEFAULT_BREAK_MINUTES;
-    if (focusInput) focusInput.value = String(focusMinutes);
-    if (breakInput) breakInput.value = String(breakMinutes);
+    longBreakMinutes = DEFAULT_LONG_BREAK_MINUTES;
   }
-  remainingSeconds = focusMinutes * 60;
+
+  if (focusInput) focusInput.value = String(focusMinutes);
+  if (breakInput) breakInput.value = String(breakMinutes);
+  if (longBreakInput) longBreakInput.value = String(longBreakMinutes);
+
   isFocusSession = true;
+  isLongBreakSession = false;
+  completedFocusBlocks = 0;
+  remainingSeconds = focusMinutes * 60;
 }
 
 function saveSettingsToStorage() {
   try {
     localStorage.setItem(
       LOCAL_STORAGE_KEY,
-      JSON.stringify({ focusMinutes, breakMinutes })
+      JSON.stringify({
+        focusMinutes,
+        breakMinutes,
+        longBreakMinutes,
+      })
     );
   } catch {
     /* quota or private mode */
   }
+}
+
+function validateAndApplyInputs() {
+  const parseBounded = (input, fallback, min, max) => {
+    if (!input) return fallback;
+    const n = parseInt(String(input.value).trim(), 10);
+    if (Number.isNaN(n)) return fallback;
+    return clamp(n, min, max);
+  };
+
+  focusMinutes = parseBounded(focusInput, focusMinutes, 1, 180);
+  breakMinutes = parseBounded(breakInput, breakMinutes, 1, 60);
+  longBreakMinutes = parseBounded(longBreakInput, longBreakMinutes, 1, 60);
+
+  if (focusInput) focusInput.value = String(focusMinutes);
+  if (breakInput) breakInput.value = String(breakMinutes);
+  if (longBreakInput) longBreakInput.value = String(longBreakMinutes);
+
+  if (!isRunning) {
+    if (isFocusSession) {
+      remainingSeconds = focusMinutes * 60;
+    } else if (isLongBreakSession) {
+      remainingSeconds = longBreakMinutes * 60;
+    } else {
+      remainingSeconds = breakMinutes * 60;
+    }
+  }
+
+  return { focusMinutes, breakMinutes, longBreakMinutes };
 }
 
 function loadStats() {
@@ -81,14 +135,16 @@ function loadStats() {
   if (!raw) return;
   try {
     const parsed = JSON.parse(raw);
-    if (parsed.totalSessions != null && parsed.totalFocusMinutes != null) {
+    const ts = Number(parsed.totalSessions);
+    const tm = Number(parsed.totalFocusMinutes);
+    if (Number.isFinite(ts) && Number.isFinite(tm)) {
       stats = {
-        totalSessions: Number(parsed.totalSessions),
-        totalFocusMinutes: Number(parsed.totalFocusMinutes),
+        totalSessions: Math.max(0, Math.floor(ts)),
+        totalFocusMinutes: Math.max(0, Math.floor(tm)),
       };
     }
   } catch {
-    /* invalid or missing */
+    /* invalid */
   }
 }
 
@@ -101,42 +157,19 @@ function saveStats() {
 }
 
 function updateStatsUI() {
-  const sessionsEl = document.getElementById("stats-sessions");
-  const minutesEl = document.getElementById("stats-minutes");
-  if (sessionsEl) sessionsEl.textContent = String(stats.totalSessions);
-  if (minutesEl) minutesEl.textContent = String(stats.totalFocusMinutes);
+  if (statsSessionsElement) {
+    statsSessionsElement.textContent = String(stats.totalSessions);
+  }
+  if (statsMinutesElement) {
+    statsMinutesElement.textContent = String(stats.totalFocusMinutes);
+  }
 }
 
 function incrementStatsOnSessionComplete() {
-  if (isFocusSession === false) return;
   stats.totalSessions += 1;
   stats.totalFocusMinutes += focusMinutes;
   saveStats();
   updateStatsUI();
-}
-
-function validateAndApplyInputs() {
-  const parseMin = (input, fallback) => {
-    if (!input) return fallback;
-    const raw = String(input.value).trim();
-    const n = parseInt(raw, 10);
-    if (Number.isNaN(n) || n < 1 || n > 180) {
-      return fallback;
-    }
-    return n;
-  };
-
-  focusMinutes = parseMin(focusInput, focusMinutes);
-  breakMinutes = parseMin(breakInput, breakMinutes);
-
-  if (focusInput) focusInput.value = String(focusMinutes);
-  if (breakInput) breakInput.value = String(breakMinutes);
-
-  if (!isRunning && isFocusSession && !isPaused) {
-    remainingSeconds = focusMinutes * 60;
-  }
-
-  return { focusMinutes, breakMinutes };
 }
 
 function formatTime(totalSeconds) {
@@ -146,20 +179,45 @@ function formatTime(totalSeconds) {
   return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
+function updateCycleIndicator() {
+  if (!cycleIndicator) return;
+  const displayBlock = completedFocusBlocks + 1;
+  cycleIndicator.textContent = `Focus block ${displayBlock} of ${FOCUS_BLOCKS_BEFORE_LONG_BREAK}`;
+}
+
 function updateDisplay() {
-  if (!timerDisplay || !sessionIndicator) return;
+  if (timerDisplay) {
+    timerDisplay.textContent = formatTime(remainingSeconds);
+  }
+  if (sessionIndicator) {
+    if (isFocusSession) {
+      sessionIndicator.textContent = "FOCUS";
+    } else if (isLongBreakSession) {
+      sessionIndicator.textContent = "LONG BREAK";
+    } else {
+      sessionIndicator.textContent = "BREAK";
+    }
+  }
 
-  timerDisplay.textContent = formatTime(remainingSeconds);
-  sessionIndicator.textContent = isFocusSession ? "FOCUS" : "BREAK";
+  let titleLabel = "FOCUS";
+  if (!isFocusSession) {
+    titleLabel = isLongBreakSession ? "LONG BREAK" : "BREAK";
+  }
+  document.title = `[${titleLabel}] ${formatTime(remainingSeconds)} – Synth Pomodoro`;
 
-  const label = isFocusSession ? "FOCUS" : "BREAK";
-  document.title = `[${label}] ${formatTime(remainingSeconds)} – Synth Pomodoro`;
+  updateCycleIndicator();
 }
 
 function applySessionTheme() {
   if (!appContainer) return;
-  appContainer.classList.remove("focus-mode", "break-mode");
-  appContainer.classList.add(isFocusSession ? "focus-mode" : "break-mode");
+  appContainer.classList.remove("focus-mode", "break-mode", "long-break-mode");
+  if (isFocusSession) {
+    appContainer.classList.add("focus-mode");
+  } else if (isLongBreakSession) {
+    appContainer.classList.add("long-break-mode");
+  } else {
+    appContainer.classList.add("break-mode");
+  }
 }
 
 function playSessionSound() {
@@ -180,10 +238,33 @@ function flashSessionIndicator() {
   }, 350);
 }
 
-function switchSession() {
+function handleFocusFinished() {
   incrementStatsOnSessionComplete();
-  isFocusSession = !isFocusSession;
-  remainingSeconds = (isFocusSession ? focusMinutes : breakMinutes) * 60;
+
+  completedFocusBlocks += 1;
+
+  if (completedFocusBlocks >= FOCUS_BLOCKS_BEFORE_LONG_BREAK) {
+    completedFocusBlocks = 0;
+    isFocusSession = false;
+    isLongBreakSession = true;
+    remainingSeconds = longBreakMinutes * 60;
+  } else {
+    isFocusSession = false;
+    isLongBreakSession = false;
+    remainingSeconds = breakMinutes * 60;
+  }
+
+  applySessionTheme();
+  playSessionSound();
+  flashSessionIndicator();
+  updateDisplay();
+}
+
+function handleBreakFinished() {
+  isFocusSession = true;
+  isLongBreakSession = false;
+  remainingSeconds = focusMinutes * 60;
+
   applySessionTheme();
   playSessionSound();
   flashSessionIndicator();
@@ -192,12 +273,24 @@ function switchSession() {
 
 function tick() {
   if (!isRunning) return;
-  remainingSeconds -= 1;
-  if (remainingSeconds <= 0) {
-    switchSession();
+
+  if (remainingSeconds > 0) {
+    remainingSeconds -= 1;
+    updateDisplay();
     return;
   }
-  updateDisplay();
+
+  if (isFocusSession) {
+    handleFocusFinished();
+  } else {
+    handleBreakFinished();
+  }
+}
+
+function setInputsDisabled(disabled) {
+  if (focusInput) focusInput.disabled = disabled;
+  if (breakInput) breakInput.disabled = disabled;
+  if (longBreakInput) longBreakInput.disabled = disabled;
 }
 
 function startTimer() {
@@ -206,21 +299,14 @@ function startTimer() {
   validateAndApplyInputs();
   saveSettingsToStorage();
 
-  if (!isPaused) {
-    remainingSeconds = (isFocusSession ? focusMinutes : breakMinutes) * 60;
-  }
-  isPaused = false;
-
-  if (focusInput) focusInput.disabled = true;
-  if (breakInput) breakInput.disabled = true;
+  setInputsDisabled(true);
 
   isRunning = true;
-  if (startButton) {
-    startButton.textContent = "Pause";
-    startButton.setAttribute("aria-pressed", "true");
-  }
+  if (startButton) startButton.textContent = "Pause";
 
-  clearInterval(intervalId);
+  if (intervalId !== null) {
+    clearInterval(intervalId);
+  }
   intervalId = window.setInterval(tick, 1000);
   updateDisplay();
 }
@@ -231,15 +317,10 @@ function pauseTimer() {
   clearInterval(intervalId);
   intervalId = null;
   isRunning = false;
-  isPaused = true;
 
-  if (focusInput) focusInput.disabled = false;
-  if (breakInput) breakInput.disabled = false;
+  setInputsDisabled(false);
 
-  if (startButton) {
-    startButton.textContent = "Start";
-    startButton.setAttribute("aria-pressed", "false");
-  }
+  if (startButton) startButton.textContent = "Start";
 
   updateDisplay();
 }
@@ -248,19 +329,17 @@ function resetTimer() {
   clearInterval(intervalId);
   intervalId = null;
   isRunning = false;
-  isPaused = false;
+
   isFocusSession = true;
+  isLongBreakSession = false;
+  completedFocusBlocks = 0;
 
   validateAndApplyInputs();
   remainingSeconds = focusMinutes * 60;
 
-  if (focusInput) focusInput.disabled = false;
-  if (breakInput) breakInput.disabled = false;
+  setInputsDisabled(false);
 
-  if (startButton) {
-    startButton.textContent = "Start";
-    startButton.setAttribute("aria-pressed", "false");
-  }
+  if (startButton) startButton.textContent = "Start";
 
   if (sessionIndicator) {
     sessionIndicator.classList.remove("session-flash");
@@ -274,13 +353,42 @@ function resetTimer() {
   updateDisplay();
 }
 
+function handleStartButtonClick() {
+  if (isRunning) {
+    pauseTimer();
+  } else {
+    startTimer();
+  }
+}
+
+function handleResetButtonClick() {
+  resetTimer();
+}
+
+function handleInputBlurOrChange() {
+  if (!isRunning) {
+    validateAndApplyInputs();
+    updateDisplay();
+    saveSettingsToStorage();
+  }
+}
+
+function handleClearStats() {
+  stats.totalSessions = 0;
+  stats.totalFocusMinutes = 0;
+  saveStats();
+  updateStatsUI();
+}
+
 function init() {
   if (
     !appContainer ||
     !timerDisplay ||
     !sessionIndicator ||
+    !cycleIndicator ||
     !focusInput ||
     !breakInput ||
+    !longBreakInput ||
     !startButton ||
     !resetButton
   ) {
@@ -289,41 +397,23 @@ function init() {
 
   loadSettingsFromStorage();
   loadStats();
-  updateStatsUI();
   applySessionTheme();
   updateDisplay();
+  updateStatsUI();
 
-  startButton.addEventListener("click", () => {
-    if (!isRunning) {
-      startTimer();
-    } else {
-      pauseTimer();
-    }
-  });
+  startButton.addEventListener("click", handleStartButtonClick);
+  resetButton.addEventListener("click", handleResetButtonClick);
 
-  resetButton.addEventListener("click", resetTimer);
+  focusInput.addEventListener("change", handleInputBlurOrChange);
+  focusInput.addEventListener("blur", handleInputBlurOrChange);
+  breakInput.addEventListener("change", handleInputBlurOrChange);
+  breakInput.addEventListener("blur", handleInputBlurOrChange);
+  longBreakInput.addEventListener("change", handleInputBlurOrChange);
+  longBreakInput.addEventListener("blur", handleInputBlurOrChange);
 
-  const clearStatsButton = document.getElementById("clear-stats-button");
   if (clearStatsButton) {
-    clearStatsButton.addEventListener("click", () => {
-      stats.totalSessions = 0;
-      stats.totalFocusMinutes = 0;
-      saveStats();
-      updateStatsUI();
-    });
+    clearStatsButton.addEventListener("click", handleClearStats);
   }
-
-  const onInputCommit = () => {
-    if (!isRunning) {
-      validateAndApplyInputs();
-      updateDisplay();
-    }
-  };
-
-  focusInput.addEventListener("blur", onInputCommit);
-  focusInput.addEventListener("change", onInputCommit);
-  breakInput.addEventListener("blur", onInputCommit);
-  breakInput.addEventListener("change", onInputCommit);
 }
 
 document.addEventListener("DOMContentLoaded", init);

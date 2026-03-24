@@ -1,43 +1,52 @@
 # Synth Pomodoro
 
-Retro **Synthwave**–styled Pomodoro timer built with plain **HTML**, **CSS**, and **vanilla JavaScript**—no frameworks or build step.
-
-## How to run
-
-- **Direct:** double-click `index.html` or open it from your browser (File → Open).
-- **Local server (optional):** from this folder run:
-  - `python3 -m http.server 8080` then visit `http://localhost:8080`
-  - or `npx --yes serve .` if you use Node.
+A **Synthwave**-styled **Pomodoro timer** built with plain **HTML**, **CSS**, and **vanilla JavaScript**. There is no build step or framework; the app is static and works on **GitHub Pages** or any static host.
 
 ## Features
 
-### Stats panel
+- **Synthwave UI** — Neon gradients, glow, and distinct styling for focus, short break, and long break.
+- **Configurable durations** — Focus (1–180 minutes), short break (1–60 minutes), and long break (1–60 minutes), with defaults of **25 / 5 / 15** minutes.
+- **Pomodoro cycles** — After each completed focus session, a short break runs. After **four** completed focus blocks in a row, the next break is a **long break**; the focus-block counter then resets for the next cycle.
+- **Cycle indicator** — Shows which focus block you are on within the current cycle (for example, “Focus block 3 of 4”).
+- **Start / Pause and Reset** — Start toggles the countdown; Reset returns to a fresh focus session at the configured focus length and resets the cycle counter.
+- **Session switch sound** — A short cue plays when the session type changes (placeholder WAV via data URL; you can swap the `<audio>` source for a custom file).
+- **Stats** — Total completed focus sessions and total focus minutes, stored in the browser.
+- **Persistence** — Timer settings and stats are saved in **localStorage** and restored when you open the app again.
 
-- Tracks **total completed focus sessions** (count) and **total accumulated focus minutes** (sum of configured focus lengths for each completed focus block).
-- Stats are stored in `localStorage` under `synthPomodoroStats` and persist across visits.
-- **Clear Stats** resets only these counters; timer **settings** (`synthPomodoroSettings`) are unchanged.
+## How it works
 
-### Enhanced behaviour
+The app counts **completed focus sessions** in the current cycle. When a focus timer reaches zero, that counts as one completed block, stats are updated, and the block counter increases. After blocks **1–3**, the next segment is a **short break**. After the **fourth** completed focus block in the cycle, the counter resets and the next segment is a **long break**. When any break ends, the timer returns to **focus** for the next block.
 
-- **Persisted settings** — focus and break durations are saved in `localStorage` (key `synthPomodoroSettings`) and restored when you open the app again.
-- **Session sound** — a short click plays when the timer switches between focus and break (placeholder WAV via data URL; replace the `<audio>` source later for a custom asset).
-- **Tab title** — the document title shows `[FOCUS] MM:SS – Synth Pomodoro` or `[BREAK] MM:SS – Synth Pomodoro` so you can glance at progress from other tabs.
-- **Session flash** — the session pill briefly animates when the mode changes.
+The line under the timer (for example, “Focus block 2 of 4”) reflects position in the cycle: during breaks it indicates the **next** focus block you are working toward.
 
-**Limitations:** no long-break logic yet; the cue sound is a minimal placeholder; some browsers may block audio until there has been a user gesture (subsequent switches usually work after you’ve pressed Start once).
+## Running locally
 
-- **Configurable durations** — focus and break lengths (1–180 minutes each), validated on Start; invalid values fall back to **25** / **5** minutes.
-- **Start / Pause** — one primary control toggles the countdown; durations are locked while the timer is running.
-- **Reset** — stops the timer, returns to **FOCUS**, and restores the remaining time to the current focus duration from the inputs.
-- **Automatic cycling** — when focus hits zero, switch to break; when break hits zero, switch back to focus (infinite loop).
-- **Visual feedback** — focus vs break styling (neon colours, glow), session pill, optional title bar updates, brief flash on session change.
+- **Direct:** Open `index.html` in your browser (double-click or File → Open).
+- **Static server (optional):** From the project folder, for example:
+  - `python3 -m http.server 8080` then visit `http://localhost:8080`
+  - or `npx --yes serve .` if you use Node.
 
-This is a **proof of concept** you can extend (sounds, long breaks, persistence, PWA, etc.).
+Using a local server avoids edge cases with `file://` URLs; for day-to-day use, opening the file directly is usually fine.
+
+## Deployment
+
+This project is a single-page static site. **GitHub Pages** is a common choice: push the repository, enable Pages for the branch or folder that contains `index.html`, and the app will load from the published URL. Any static host (Netlify, Cloudflare Pages, etc.) works the same way.
+
+## Storage keys
+
+| Key | Purpose |
+| --- | --- |
+| `synthPomodoroSettings` | Focus, short break, and long break lengths (minutes) |
+| `synthPomodoroStats` | Total focus sessions and total focus minutes |
+
+**Clear Stats** only resets the stats counters; timer settings are unchanged.
 
 ## Files
 
-| File        | Role                          |
-| ----------- | ----------------------------- |
-| `index.html` | Page structure and controls  |
-| `styles.css` | Synthwave layout and themes  |
-| `script.js`  | Timer state and behaviour    |
+| File | Role |
+| --- | --- |
+| `index.html` | Structure, controls, audio, script include |
+| `styles.css` | Synthwave layout and focus / break / long-break themes |
+| `script.js` | Timer logic, cycles, persistence, stats |
+
+Some browsers may block audio until there has been a user gesture (for example, pressing Start); after that, session-change sounds usually play normally.

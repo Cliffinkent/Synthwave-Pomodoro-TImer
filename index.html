@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Synth Pomodoro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -11,88 +11,67 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
-    <script src="script.js" defer></script>
   </head>
   <body>
-    <div class="grid-floor" aria-hidden="true"></div>
-    <div class="shimmer" aria-hidden="true"></div>
+    <main>
+      <div class="app-container focus-mode" id="app-container">
+        <header class="app-header">
+          <h1 class="app-title">SYNTH POMODORO</h1>
+          <p class="app-subtitle">
+            25 / 5 with long breaks every 4 focus blocks
+          </p>
+        </header>
 
-    <main id="app" class="timer-shell">
-      <div
-        class="timer-card app-container focus-mode"
-        id="app-container"
-      >
-        <h1 class="app-title">SYNTH POMODORO</h1>
-
-        <div
-          id="session-indicator"
-          class="session-indicator session-tag"
-          role="status"
-          aria-live="polite"
-        >
-          FOCUS
+        <div class="session-indicator" id="session-indicator">FOCUS</div>
+        <div class="timer-display" id="timer-display">25:00</div>
+        <div class="cycle-indicator" id="cycle-indicator">
+          Focus block 1 of 4
         </div>
 
-        <div class="timer-block">
-          <div id="timer-display" class="timer-readout">25:00</div>
-        </div>
-
-        <fieldset class="duration-fields">
-          <legend class="visually-hidden">Session lengths in minutes</legend>
-          <div class="field-row">
+        <section class="settings">
+          <h2 class="section-title">Durations</h2>
+          <div class="settings-row">
             <label for="focus-minutes-input">Focus (min)</label>
             <input
               id="focus-minutes-input"
-              name="focusMinutes"
               type="number"
               min="1"
               max="180"
               value="25"
-              inputmode="numeric"
-              aria-describedby="focusMinutes-hint"
             />
-            <span id="focusMinutes-hint" class="field-hint"
-              >1–180 minutes</span
-            >
           </div>
-          <div class="field-row">
-            <label for="break-minutes-input">Break (min)</label>
+          <div class="settings-row">
+            <label for="break-minutes-input">Short break (min)</label>
             <input
               id="break-minutes-input"
-              name="breakMinutes"
               type="number"
               min="1"
-              max="180"
+              max="60"
               value="5"
-              inputmode="numeric"
-              aria-describedby="breakMinutes-hint"
             />
-            <span id="breakMinutes-hint" class="field-hint"
-              >1–180 minutes</span
-            >
           </div>
-        </fieldset>
+          <div class="settings-row">
+            <label for="long-break-minutes-input">Long break (min)</label>
+            <input
+              id="long-break-minutes-input"
+              type="number"
+              min="1"
+              max="60"
+              value="15"
+            />
+          </div>
+        </section>
 
-        <div class="controls">
-          <button
-            type="button"
-            id="start-button"
-            class="btn btn-start"
-            aria-pressed="false"
-          >
+        <section class="controls">
+          <button id="start-button" class="neon-btn primary-btn" type="button">
             Start
           </button>
-          <button
-            type="button"
-            id="reset-button"
-            class="btn btn-reset"
-            aria-label="Reset timer to focus session and configured focus length"
-          >
+          <button id="reset-button" class="neon-btn secondary-btn" type="button">
             Reset
           </button>
-        </div>
+        </section>
 
-        <div class="stats-panel" id="stats-panel">
+        <section class="stats-panel" id="stats-panel">
           <h2 class="stats-title">Stats</h2>
           <div class="stats-row">
             <span>Total Focus Sessions:</span>
@@ -102,17 +81,11 @@
             <span>Total Focus Minutes:</span>
             <span id="stats-minutes">0</span>
           </div>
-          <button
-            type="button"
-            id="clear-stats-button"
-            class="neon-btn"
-          >
+          <button id="clear-stats-button" class="neon-btn" type="button">
             Clear Stats
           </button>
-        </div>
+        </section>
       </div>
-
-      <footer class="app-footer">Retro Synthwave Pomodoro</footer>
     </main>
 
     <audio id="session-sound" preload="auto">
@@ -121,5 +94,6 @@
         type="audio/wav"
       />
     </audio>
+    <script src="script.js"></script>
   </body>
 </html>
