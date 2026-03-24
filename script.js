@@ -27,6 +27,7 @@ let flashTimeoutId = null;
 let stats = {
   totalSessions: 0,
   totalFocusMinutes: 0,
+  days: {},
 };
 
 const appContainer = document.getElementById("app-container");
@@ -45,10 +46,31 @@ const sessionSound = document.getElementById("session-sound");
 
 const statsSessionsElement = document.getElementById("stats-sessions");
 const statsMinutesElement = document.getElementById("stats-minutes");
+const statsTodayElement = document.getElementById("stats-today");
+const statsLast7Element = document.getElementById("stats-last7");
+const statsStreakElement = document.getElementById("stats-streak");
 const clearStatsButton = document.getElementById("clear-stats-button");
 
 function clamp(n, min, max) {
   return Math.min(max, Math.max(min, n));
+}
+
+function getTodayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function shiftDateKey(dateKey, daysToSubtract) {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() - daysToSubtract);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function loadSettingsFromStorage() {
@@ -137,12 +159,33 @@ function loadStats() {
     const parsed = JSON.parse(raw);
     const ts = Number(parsed.totalSessions);
     const tm = Number(parsed.totalFocusMinutes);
-    if (Number.isFinite(ts) && Number.isFinite(tm)) {
-      stats = {
-        totalSessions: Math.max(0, Math.floor(ts)),
-        totalFocusMinutes: Math.max(0, Math.floor(tm)),
-      };
+    const totalSessions = Number.isFinite(ts)
+      ? Math.max(0, Math.floor(ts))
+      : 0;
+    const totalFocusMinutes = Number.isFinite(tm)
+      ? Math.max(0, Math.floor(tm))
+      : 0;
+
+    let days = {};
+    if (
+      parsed.days != null &&
+      typeof parsed.days === "object" &&
+      !Array.isArray(parsed.days)
+    ) {
+      for (const key of Object.keys(parsed.days)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+        const entry = parsed.days[key];
+        if (entry == null || typeof entry !== "object") continue;
+        const s = Number(entry.sessions);
+        const m = Number(entry.minutes);
+        days[key] = {
+          sessions: Number.isFinite(s) ? Math.max(0, Math.floor(s)) : 0,
+          minutes: Number.isFinite(m) ? Math.max(0, Math.floor(m)) : 0,
+        };
+      }
     }
+
+    stats = { totalSessions, totalFocusMinutes, days };
   } catch {
     /* invalid */
   }
@@ -163,11 +206,61 @@ function updateStatsUI() {
   if (statsMinutesElement) {
     statsMinutesElement.textContent = String(stats.totalFocusMinutes);
   }
+
+  if (!stats.days || typeof stats.days !== "object") {
+    stats.days = {};
+  }
+
+  const todayKey = getTodayKey();
+  const today = stats.days[todayKey] || { sessions: 0, minutes: 0 };
+  if (statsTodayElement) {
+    statsTodayElement.textContent = `${today.minutes} min (${today.sessions} sessions)`;
+  }
+
+  let last7Minutes = 0;
+  let dateKey = todayKey;
+  for (let i = 0; i < 7; i += 1) {
+    const dayStats = stats.days[dateKey];
+    if (dayStats && typeof dayStats.minutes === "number") {
+      last7Minutes += dayStats.minutes;
+    }
+    dateKey = shiftDateKey(dateKey, 1);
+  }
+  if (statsLast7Element) {
+    statsLast7Element.textContent = `${last7Minutes} min`;
+  }
+
+  let streak = 0;
+  dateKey = todayKey;
+  for (let i = 0; i < 365; i += 1) {
+    const dayStats = stats.days[dateKey];
+    if (dayStats && dayStats.sessions > 0) {
+      streak += 1;
+      dateKey = shiftDateKey(dateKey, 1);
+    } else {
+      break;
+    }
+  }
+  if (statsStreakElement) {
+    statsStreakElement.textContent = `${streak} ${streak === 1 ? "day" : "days"}`;
+  }
 }
 
 function incrementStatsOnSessionComplete() {
+  if (!isFocusSession) {
+    return;
+  }
+
   stats.totalSessions += 1;
   stats.totalFocusMinutes += focusMinutes;
+
+  const todayKey = getTodayKey();
+  if (!stats.days[todayKey]) {
+    stats.days[todayKey] = { sessions: 0, minutes: 0 };
+  }
+  stats.days[todayKey].sessions += 1;
+  stats.days[todayKey].minutes += focusMinutes;
+
   saveStats();
   updateStatsUI();
 }
@@ -220,6 +313,18 @@ function applySessionTheme() {
   }
 }
 
+function updateImmersiveMode() {
+  if (!appContainer) return;
+  const shouldBeImmersive =
+    isRunning && isFocusSession && !isLongBreakSession;
+
+  if (shouldBeImmersive) {
+    appContainer.classList.add("immersive-mode");
+  } else {
+    appContainer.classList.remove("immersive-mode");
+  }
+}
+
 function playSessionSound() {
   if (!sessionSound) return;
   sessionSound.currentTime = 0;
@@ -255,6 +360,7 @@ function handleFocusFinished() {
   }
 
   applySessionTheme();
+  updateImmersiveMode();
   playSessionSound();
   flashSessionIndicator();
   updateDisplay();
@@ -266,6 +372,7 @@ function handleBreakFinished() {
   remainingSeconds = focusMinutes * 60;
 
   applySessionTheme();
+  updateImmersiveMode();
   playSessionSound();
   flashSessionIndicator();
   updateDisplay();
@@ -309,6 +416,7 @@ function startTimer() {
   }
   intervalId = window.setInterval(tick, 1000);
   updateDisplay();
+  updateImmersiveMode();
 }
 
 function pauseTimer() {
@@ -323,6 +431,7 @@ function pauseTimer() {
   if (startButton) startButton.textContent = "Start";
 
   updateDisplay();
+  updateImmersiveMode();
 }
 
 function resetTimer() {
@@ -351,6 +460,7 @@ function resetTimer() {
 
   applySessionTheme();
   updateDisplay();
+  updateImmersiveMode();
 }
 
 function handleStartButtonClick() {
@@ -376,6 +486,7 @@ function handleInputBlurOrChange() {
 function handleClearStats() {
   stats.totalSessions = 0;
   stats.totalFocusMinutes = 0;
+  stats.days = {};
   saveStats();
   updateStatsUI();
 }
@@ -400,6 +511,7 @@ function init() {
   applySessionTheme();
   updateDisplay();
   updateStatsUI();
+  updateImmersiveMode();
 
   startButton.addEventListener("click", handleStartButtonClick);
   resetButton.addEventListener("click", handleResetButtonClick);

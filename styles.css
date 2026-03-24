@@ -53,6 +53,10 @@ main {
     0 0 48px rgba(138, 43, 226, 0.35),
     inset 0 0 32px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(8px);
+  transition:
+    padding 0.4s ease,
+    max-width 0.4s ease,
+    margin-top 0.4s ease;
 }
 
 .app-container.break-mode {
@@ -99,6 +103,8 @@ main {
   font-weight: 500;
   letter-spacing: 0.04em;
   color: rgba(200, 180, 230, 0.9);
+  opacity: 1;
+  max-height: 80px;
 }
 
 .section-title {
@@ -152,6 +158,9 @@ main {
     0 0 8px rgba(255, 240, 120, 0.95),
     0 0 24px rgba(255, 45, 149, 0.85),
     0 0 40px rgba(255, 0, 180, 0.45);
+  transition: transform 0.5s ease, opacity 0.5s ease;
+  transform: scale(1);
+  transform-origin: center;
 }
 
 .app-container.break-mode .timer-display {
@@ -171,7 +180,7 @@ main {
 }
 
 .cycle-indicator {
-  margin: 1rem 0 1.5rem;
+  margin: 8px 0 16px;
   text-align: center;
   font-size: 0.95rem;
   font-weight: 600;
@@ -180,6 +189,8 @@ main {
   text-shadow:
     0 0 8px rgba(150, 180, 255, 0.35),
     0 0 16px rgba(100, 140, 255, 0.2);
+  opacity: 1;
+  max-height: 40px;
 }
 
 .app-container.focus-mode .session-indicator {
@@ -226,8 +237,17 @@ main {
   }
 }
 
+.app-subtitle,
+.cycle-indicator,
+.settings,
+.stats-panel {
+  transition: opacity 0.4s ease, max-height 0.4s ease, margin 0.4s ease;
+}
+
 .settings {
   margin-bottom: 1.5rem;
+  opacity: 1;
+  max-height: 500px;
 }
 
 .settings-row {
@@ -360,6 +380,8 @@ input[disabled] {
   box-shadow:
     0 0 10px rgba(255, 255, 255, 0.1),
     0 0 20px rgba(255, 255, 255, 0.05);
+  opacity: 1;
+  max-height: 600px;
 }
 
 .stats-title {
@@ -378,6 +400,43 @@ input[disabled] {
   color: #d0d0d0;
 }
 
+.stats-divider {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.stats-subtitle {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  text-align: left;
+  color: #f0f0f0;
+  text-shadow: 0 0 4px rgba(255, 64, 160, 0.6);
+}
+
+.stats-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.stats-insight {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  color: #d0d0d0;
+}
+
+.stats-insight-label {
+  opacity: 0.85;
+}
+
+.stats-insight-value {
+  font-weight: 600;
+  color: #ffffff;
+}
+
 #clear-stats-button {
   margin-top: 1rem;
   width: 100%;
@@ -386,4 +445,30 @@ input[disabled] {
 
 audio#session-sound {
   display: none;
+}
+
+/* Immersive focus mode: running focus session only */
+.app-container.immersive-mode {
+  max-width: 360px;
+  padding-top: 32px;
+  padding-bottom: 24px;
+  margin-top: 48px;
+}
+
+.app-container.immersive-mode .app-subtitle,
+.app-container.immersive-mode .cycle-indicator,
+.app-container.immersive-mode .settings,
+.app-container.immersive-mode .stats-panel {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.app-container.immersive-mode .timer-display {
+  margin-bottom: 12px;
+  transform: scale(1.2);
+  opacity: 1;
 }

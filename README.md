@@ -13,6 +13,20 @@ A **Synthwave**-styled **Pomodoro timer** built with plain **HTML**, **CSS**, an
 - **Stats** — Total completed focus sessions and total focus minutes, stored in the browser.
 - **Persistence** — Timer settings and stats are saved in **localStorage** and restored when you open the app again.
 
+## Immersive Focus Mode
+
+When a **focus** session is **running** (timer active, not on a break), the app adds an `immersive-mode` class to the main card: the layout tightens, secondary sections (subtitle, cycle indicator, duration inputs, and stats) **fade and collapse**, and the **timer readout scales up** with a smooth transition. **Pause**, **Reset**, or switching to a **short or long break** removes immersive mode and restores the full UI.
+
+## Analytics
+
+The **Insights** section in the stats panel uses **per-day** focus data stored under the same `synthPomodoroStats` key as lifetime totals:
+
+- **Today** — Focus minutes and session count for the current **calendar day** (in your local timezone).
+- **Last 7 days** — Sum of focus minutes across the **last seven calendar days**, including today.
+- **Streak** — Number of **consecutive calendar days ending today** on which you completed at least one focus session. If you have no sessions today, the streak is **0**.
+
+All of this is **local to your browser** only. **Clear Stats** resets lifetime totals **and** the per-day map (`days`), in addition to clearing the Insights display; timer **settings** are not affected.
+
 ## How it works
 
 The app counts **completed focus sessions** in the current cycle. When a focus timer reaches zero, that counts as one completed block, stats are updated, and the block counter increases. After blocks **1–3**, the next segment is a **short break**. After the **fourth** completed focus block in the cycle, the counter resets and the next segment is a **long break**. When any break ends, the timer returns to **focus** for the next block.
@@ -37,9 +51,9 @@ This project is a single-page static site. **GitHub Pages** is a common choice: 
 | Key | Purpose |
 | --- | --- |
 | `synthPomodoroSettings` | Focus, short break, and long break lengths (minutes) |
-| `synthPomodoroStats` | Total focus sessions and total focus minutes |
+| `synthPomodoroStats` | Lifetime totals plus a `days` object: ISO date keys (`YYYY-MM-DD`) mapped to `{ sessions, minutes }` |
 
-**Clear Stats** only resets the stats counters; timer settings are unchanged.
+**Clear Stats** resets lifetime stats and all per-day analytics; timer settings are unchanged.
 
 ## Files
 
