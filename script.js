@@ -4,6 +4,7 @@
 
 const LOCAL_STORAGE_KEY = "synthPomodoroSettings";
 const STATS_KEY = "synthPomodoroStats";
+const DAY_STATS_RETENTION_DAYS = 730;
 
 const DEFAULT_FOCUS_MINUTES = 25;
 const DEFAULT_BREAK_MINUTES = 5;
@@ -72,6 +73,32 @@ function shiftDateKey(dateKey, daysToSubtract) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function compareDateKeys(a, b) {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
+function getRetentionCutoffDateKey(todayKey = getTodayKey()) {
+  return shiftDateKey(todayKey, DAY_STATS_RETENTION_DAYS - 1);
+}
+
+function pruneDayStats(days, todayKey = getTodayKey()) {
+  if (!days || typeof days !== "object" || Array.isArray(days)) {
+    return {};
+  }
+
+  const cutoffKey = getRetentionCutoffDateKey(todayKey);
+  const pruned = {};
+
+  for (const key of Object.keys(days)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+    if (compareDateKeys(key, cutoffKey) < 0) continue;
+    pruned[key] = days[key];
+  }
+
+  return pruned;
 }
 
 function loadSettingsFromStorage() {
@@ -186,6 +213,7 @@ function loadStats() {
       }
     }
 
+    days = pruneDayStats(days);
     stats = { totalSessions, totalFocusMinutes, days };
   } catch {
     /* invalid */
@@ -194,6 +222,7 @@ function loadStats() {
 
 function saveStats() {
   try {
+    stats.days = pruneDayStats(stats.days);
     localStorage.setItem(STATS_KEY, JSON.stringify(stats));
   } catch {
     /* quota or private mode */
