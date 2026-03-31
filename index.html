@@ -22,14 +22,56 @@
           </p>
         </header>
 
-        <div class="session-indicator" id="session-indicator">FOCUS</div>
-        <div class="timer-display" id="timer-display">25:00</div>
-        <div class="cycle-indicator" id="cycle-indicator">
-          Focus block 1 of 4
-        </div>
+        <section
+          class="timer-region"
+          id="timer-region"
+          aria-labelledby="timer-region-title"
+          aria-describedby="cycle-indicator"
+        >
+          <h2 class="sr-only" id="timer-region-title">Timer status</h2>
+          <p class="sr-only" id="timer-readout-label">Time remaining</p>
 
-        <section class="settings">
-          <h2 class="section-title">Durations</h2>
+          <div
+            class="session-indicator"
+            id="session-indicator"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label="Current session"
+          >
+            FOCUS
+          </div>
+          <div
+            class="timer-display"
+            id="timer-display"
+            role="timer"
+            aria-live="off"
+            aria-atomic="true"
+            aria-labelledby="timer-readout-label session-indicator"
+            aria-describedby="cycle-indicator"
+          >
+            25:00
+          </div>
+          <div
+            class="cycle-indicator"
+            id="cycle-indicator"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label="Pomodoro cycle progress"
+          >
+            Focus block 1 of 4
+          </div>
+
+          <p
+            class="sr-only"
+            id="session-live-region"
+            aria-live="polite"
+            aria-atomic="true"
+          ></p>
+        </section>
+
+        <section class="settings" aria-labelledby="durations-title">
+          <h2 class="section-title" id="durations-title">Durations</h2>
           <div class="settings-row">
             <label for="focus-minutes-input">Focus (min)</label>
             <input
