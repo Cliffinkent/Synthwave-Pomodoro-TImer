@@ -536,6 +536,13 @@ function handleInputBlurOrChange() {
 }
 
 function handleClearStats() {
+  const shouldClearStats = window.confirm(
+    "Clear all stats? This will permanently erase your lifetime totals and insights history."
+  );
+  if (!shouldClearStats) {
+    return;
+  }
+
   stats.totalSessions = 0;
   stats.totalFocusMinutes = 0;
   stats.days = {};
