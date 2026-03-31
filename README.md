@@ -27,6 +27,8 @@ The **Insights** section in the stats panel uses **per-day** focus data stored u
 
 All of this is **local to your browser** only. **Clear Stats** resets lifetime totals **and** the per-day map (`days`), in addition to clearing the Insights display; timer **settings** are not affected.
 
+To keep storage bounded, per-day analytics retain only the most recent **730 calendar days**; older day entries are pruned automatically during stats load/save. Lifetime totals (`totalSessions`, `totalFocusMinutes`) are preserved and are **not** reduced by pruning.
+
 ## How it works
 
 The app counts **completed focus sessions** in the current cycle. When a focus timer reaches zero, that counts as one completed block, stats are updated, and the block counter increases. After blocks **1–3**, the next segment is a **short break**. After the **fourth** completed focus block in the cycle, the counter resets and the next segment is a **long break**. When any break ends, the timer returns to **focus** for the next block.
@@ -54,6 +56,7 @@ This project is a single-page static site. **GitHub Pages** is a common choice: 
 | `synthPomodoroStats` | Lifetime totals plus a `days` object: ISO date keys (`YYYY-MM-DD`) mapped to `{ sessions, minutes }` |
 
 **Clear Stats** resets lifetime stats and all per-day analytics; timer settings are unchanged.
+Per-day entries in `synthPomodoroStats.days` are automatically pruned to the most recent **730 days**; lifetime totals are kept intact.
 
 ## Files
 
