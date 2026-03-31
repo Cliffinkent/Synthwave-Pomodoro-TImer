@@ -20,6 +20,7 @@ let breakMinutes = DEFAULT_BREAK_MINUTES;
 let longBreakMinutes = DEFAULT_LONG_BREAK_MINUTES;
 
 let completedFocusBlocks = 0;
+let targetEndMs = null;
 
 let intervalId = null;
 let flashTimeoutId = null;
@@ -364,6 +365,10 @@ function handleFocusFinished() {
   playSessionSound();
   flashSessionIndicator();
   updateDisplay();
+
+  if (isRunning) {
+    targetEndMs = Date.now() + remainingSeconds * 1000;
+  }
 }
 
 function handleBreakFinished() {
@@ -376,13 +381,21 @@ function handleBreakFinished() {
   playSessionSound();
   flashSessionIndicator();
   updateDisplay();
+
+  if (isRunning) {
+    targetEndMs = Date.now() + remainingSeconds * 1000;
+  }
 }
 
 function tick() {
-  if (!isRunning) return;
+  if (!isRunning || targetEndMs === null) return;
+
+  remainingSeconds = Math.max(
+    0,
+    Math.ceil((targetEndMs - Date.now()) / 1000)
+  );
 
   if (remainingSeconds > 0) {
-    remainingSeconds -= 1;
     updateDisplay();
     return;
   }
@@ -409,6 +422,7 @@ function startTimer() {
   setInputsDisabled(true);
 
   isRunning = true;
+  targetEndMs = Date.now() + remainingSeconds * 1000;
   if (startButton) startButton.textContent = "Pause";
 
   if (intervalId !== null) {
@@ -422,9 +436,17 @@ function startTimer() {
 function pauseTimer() {
   if (!isRunning) return;
 
+  if (targetEndMs !== null) {
+    remainingSeconds = Math.max(
+      0,
+      Math.ceil((targetEndMs - Date.now()) / 1000)
+    );
+  }
+
   clearInterval(intervalId);
   intervalId = null;
   isRunning = false;
+  targetEndMs = null;
 
   setInputsDisabled(false);
 
@@ -442,6 +464,7 @@ function resetTimer() {
   isFocusSession = true;
   isLongBreakSession = false;
   completedFocusBlocks = 0;
+  targetEndMs = null;
 
   validateAndApplyInputs();
   remainingSeconds = focusMinutes * 60;
