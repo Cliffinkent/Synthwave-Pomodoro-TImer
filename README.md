@@ -13,6 +13,13 @@ A **Synthwave**-styled **Pomodoro timer** built with plain **HTML**, **CSS**, an
 - **Stats** — Total completed focus sessions and total focus minutes, stored in the browser.
 - **Persistence** — Timer settings and stats are saved in **localStorage** and restored when you open the app again.
 
+## Practical runtime behavior
+
+- **Sound playback:** Most browsers block autoplay audio until you interact with the page first. If session-change sounds are silent on first load, click **Start** (or another control) once to enable audio.
+- **What persists after reload:** Your configured durations and saved stats are restored from `localStorage`.
+- **What resets after reload:** Any active in-progress timer state (current countdown/run-pause state/session in progress) restarts as a fresh focus session.
+- **Stats retention:** Per-day analytics keep a rolling window of the most recent **730 days**; older day entries are pruned automatically, while lifetime totals remain unchanged.
+
 ## Immersive Focus Mode
 
 When a **focus** session is **running** (timer active, not on a break), the app adds an `immersive-mode` class to the main card: the layout tightens, secondary sections (subtitle, cycle indicator, duration inputs, and stats) **fade and collapse**, and the **timer readout scales up** with a smooth transition. **Pause**, **Reset**, or switching to a **short or long break** removes immersive mode and restores the full UI.
@@ -66,4 +73,3 @@ Per-day entries in `synthPomodoroStats.days` are automatically pruned to the mos
 | `styles.css` | Synthwave layout and focus / break / long-break themes |
 | `script.js` | Timer logic, cycles, persistence, stats |
 
-Some browsers may block audio until there has been a user gesture (for example, pressing Start); after that, session-change sounds usually play normally.
